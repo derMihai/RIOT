@@ -180,36 +180,44 @@ int at_recv_bytes_until_string(at_dev_t *dev, const char *string,
                                char *bytes, size_t *bytes_len, uint32_t timeout)
 {
     size_t len = 0;
-    char *_string = (char *)string;
     int res = 0;
+    size_t match_len = strlen(string);
 
 #if IS_USED(MODULE_AT_URC_ISR)
     dev->awaiting_response = true;
 #endif
-
-    while (*_string && len < *bytes_len) {
-        char c;
-        if ((res = isrpipe_read_timeout(&dev->isrpipe, (uint8_t *)&c, 1, timeout)) == 1) {
-            if (AT_PRINT_INCOMING) {
-                print(&c, 1);
-            }
-            if (c == *_string) {
-                _string++;
-            }
-            bytes[len] = c;
-            len++;
+    res = isrpipe_read_timeout(&dev->isrpipe, (unsigned char *)bytes, match_len, timeout);
+    if (res < (ssize_t)match_len) {
+        if (res > 0) {
+            len = res;
         }
-        else {
+        res = -ETIMEDOUT;
+        goto no_match;
+    }
+
+    len = match_len;
+    char const *pos = bytes;
+    // TODO: implement incremental hashing
+    while (strncmp(pos, string, match_len)) {
+        if (len == *bytes_len) {
+            res = -ENOBUFS;
             break;
         }
+        res = isrpipe_read_timeout(&dev->isrpipe, (unsigned char *)(bytes + len), 1, timeout);
+        if (res < 1) {
+            res = -ETIMEDOUT;
+            break;
+        }
+        len += 1;
+        pos += 1;
     }
-    *bytes_len = len;
 
+no_match:
 #if IS_USED(MODULE_AT_URC_ISR)
     dev->awaiting_response = false;
 #endif
-
-    return res;
+    *bytes_len = len;
+    return res > 0 ? 0 : res;
 }
 
 int at_send_cmd(at_dev_t *dev, const char *command, uint32_t timeout)
