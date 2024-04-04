@@ -218,11 +218,20 @@ typedef struct {
 /** Shortcut for getting send end of line length */
 #define AT_SEND_EOL_LEN  (sizeof(CONFIG_AT_SEND_EOL) - 1)
 
+#define AT_RX_BUF_SIZE 16
+
+typedef struct {
+    isrpipe_t isrpipe;
+    unsigned char rx_buf[AT_RX_BUF_SIZE];
+    size_t read_pos;
+    size_t available;
+} rx_buf_t;
+
 /**
  * @brief AT device structure
  */
 typedef struct {
-    isrpipe_t isrpipe;      /**< isrpipe used for getting data from uart */
+    rx_buf_t rx_buf;        /**< rx buffer */
     uart_t uart;            /**< UART device where the AT device is attached */
     char *rp_buf;           /**< response parsing buffer */
     size_t rp_buf_size;     /**< response parsing buffer size */

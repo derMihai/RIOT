@@ -47,7 +47,7 @@ static inline bool starts_with(char const *str, char const *prefix)
 static void _isrpipe_write_one_wrapper(void *_dev, uint8_t data)
 {
     at_dev_t *dev = (at_dev_t *) _dev;
-    isrpipe_write_one(&dev->isrpipe, data);
+    isrpipe_write_one(&dev->rx_buf.isrpipe, data);
 }
 
 int at_dev_init(at_dev_t *dev, at_dev_init_t const *init)
@@ -55,13 +55,66 @@ int at_dev_init(at_dev_t *dev, at_dev_init_t const *init)
     assert(strlen(AT_RECV_EOL) >= 1);
     assert(init->rp_buf_size >= 16);
 
+    memset(dev, 0, sizeof(at_dev_t));
+
     dev->uart = init->uart;
     dev->rp_buf = init->rp_buf;
     dev->rp_buf_size = init->rp_buf_size;
 
-    isrpipe_init(&dev->isrpipe, (uint8_t *)init->rx_buf, init->rx_buf_size);
+    dev->rx_buf.read_pos = AT_RX_BUF_SIZE;
+
+    isrpipe_init(&dev->rx_buf.isrpipe, (uint8_t *)init->rx_buf, init->rx_buf_size);
 
     return uart_init(init->uart, init->baudrate, _isrpipe_write_one_wrapper, dev);
+}
+
+static ssize_t rx_buf_replenish(rx_buf_t *rx_buf, uint32_t timeout)
+{
+    if (rx_buf->available == 0) {
+        ssize_t res = isrpipe_read_timeout(&rx_buf->isrpipe, rx_buf->rx_buf,
+                                           AT_RX_BUF_SIZE, timeout);
+        assert(res != 0);
+        if (res < 0) {
+            return res;
+        }
+        rx_buf->read_pos = 0;
+        rx_buf->available = res;
+    }
+
+    return rx_buf->available;
+}
+
+static size_t rx_buf_take(rx_buf_t *rx_buf, unsigned char *buf, size_t size)
+{
+    size_t const to_read = size > (size_t)rx_buf->available ? rx_buf->available : size;
+    memcpy(buf, &rx_buf->rx_buf[rx_buf->read_pos], to_read);
+
+    rx_buf->read_pos += to_read;
+    rx_buf->available -= to_read;
+
+    return to_read;
+}
+
+static ssize_t rx_buf_rcv(rx_buf_t *rx_buf, unsigned char *buf, size_t size, uint32_t timeout)
+{
+    size_t space = size;
+    while (space > 0) {
+        ssize_t available = rx_buf_replenish(rx_buf, timeout);
+        if (available < 0) {
+            if (space == size) {
+                /* nothing was read, forward error code */
+                return available;
+            }
+            /* we read something */
+            break;
+        }
+
+        size_t const taken = rx_buf_take(rx_buf, buf, space);
+        buf += taken;
+        space -= taken;
+    };
+
+    return size - space;
 }
 
 int at_parse_resp(at_dev_t *dev, char const *resp)
