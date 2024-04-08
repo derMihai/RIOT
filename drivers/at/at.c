@@ -105,7 +105,7 @@ static ssize_t rx_buf_rcv(rx_buf_t *rx_buf, unsigned char *buf, size_t size, uin
                 /* nothing was read, forward error code */
                 return available;
             }
-            /* we read something */
+            /* we read something previously */
             break;
         }
 
