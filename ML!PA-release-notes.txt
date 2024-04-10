@@ -16,3 +16,4 @@ RIOT-2024.04-mlpa-1 - Merge Notes
  - merge benpicco/pyterm-session
  - merge benpicco/pkg/nanopb-multi
  - merge fabian18/pr/configuration_riotconf
+ - merge benpicco/go-coap_workaround

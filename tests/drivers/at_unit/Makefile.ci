@@ -1,7 +1,8 @@
 BOARD_INSUFFICIENT_MEMORY := \
     arduino-duemilanove \
-    arduino-uno \
+    arduino-leonardo \
     arduino-nano \
+    arduino-uno \
     atmega328p \
     atmega328p-xplained-mini \
     atmega8 \
