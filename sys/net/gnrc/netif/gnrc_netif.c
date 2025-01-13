@@ -426,13 +426,15 @@ int gnrc_netif_set_from_netdev(gnrc_netif_t *netif,
             extern void _stop_search_rtr(gnrc_netif_t *netif);
 
             if (*(((netopt_enable_t *)opt->data)) == NETOPT_ENABLE) {
-                netif->flags |= GNRC_NETIF_FLAGS_6LO_ABR;
                 if (!(netif->flags & GNRC_NETIF_FLAGS_6LO_ABR)) {
+                    /* we were no ABR before */
                     _stop_search_rtr(netif);
                 }
+                netif->flags |= GNRC_NETIF_FLAGS_6LO_ABR;
             }
             else {
                 if (netif->flags & GNRC_NETIF_FLAGS_6LO_ABR) {
+                    /* we were a ABR before */
                     _start_search_rtr(netif);
                 }
                 netif->flags &= ~GNRC_NETIF_FLAGS_6LO_ABR;
