@@ -151,10 +151,46 @@ int sock_udp_create(sock_udp_t *sock, const sock_udp_ep_t *local,
     return 0;
 }
 
+#ifdef SOCK_HAS_ASYNC
+typedef struct {
+    event_t super;
+    sock_udp_t *sock;
+} sock_cb_cancel_ev_t;
+
+static void cancel_sock_event_cb(event_t *event) {
+    sock_cb_cancel_ev_t *cancel_ev = container_of(event, sock_cb_cancel_ev_t, super);
+    event_cancel(cancel_ev->sock->reg.async_ctx.queue, &cancel_ev->sock->reg.async_ctx.event.super);
+}
+
+static void cancel_sock_event(sock_udp_t *sock)
+{
+    event_queue_t *queue = sock->reg.async_ctx.queue;
+    if (!queue) {
+        /* no callback registered */
+        return;
+    }
+
+    sock_cb_cancel_ev_t cancel_ev = {
+        .sock = sock,
+        .super = { .handler = cancel_sock_event_cb },
+    };
+
+    if (!queue->waiter || (queue->waiter && queue->waiter->pid == thread_getpid())) {
+        cancel_sock_event_cb(&cancel_ev.super);
+    } else {
+        event_post(queue, &cancel_ev.super);
+        event_sync(queue);
+    }
+}
+#else
+#define cancel_sock_event(sock) ((void)(sock))
+#endif
+
 void sock_udp_close(sock_udp_t *sock)
 {
     assert(sock != NULL);
     gnrc_netreg_unregister(GNRC_NETTYPE_UDP, &sock->reg.entry);
+    cancel_sock_event(sock);
 #ifdef MODULE_GNRC_SOCK_CHECK_REUSE
     if (_udp_socks != NULL) {
         gnrc_sock_reg_t *head = (gnrc_sock_reg_t *)_udp_socks;
