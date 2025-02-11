@@ -56,6 +56,9 @@ void sock_udp_close(sock_udp_t *sock)
         netconn_delete(sock->base.conn);
         sock->base.conn = NULL;
     }
+#if IS_ACTIVE(SOCK_HAS_ASYNC)
+    sock_event_close(&sock->base.async_ctx);
+#endif
 }
 
 int sock_udp_get_local(sock_udp_t *sock, sock_udp_ep_t *ep)

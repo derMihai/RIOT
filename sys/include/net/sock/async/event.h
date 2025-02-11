@@ -257,7 +257,20 @@ void sock_tcp_queue_event_init(sock_tcp_queue_t *queue, event_queue_t *ev_queue,
  */
 void sock_udp_event_init(sock_udp_t *sock, event_queue_t *ev_queue,
                          sock_udp_cb_t handler, void *handler_arg);
+
 #endif  /* defined(MODULE_SOCK_UDP) || defined(DOXYGEN) */
+
+/**
+ * @internal
+ *
+ * @brief clear any pending socket async events
+ *
+ * Do not call this in the application, it is automatically called by
+ * sock_*_close().
+ *
+ * @param[in] async_ctx socket async context
+ */
+void sock_event_close(sock_async_ctx_t *async_ctx);
 
 #ifdef __cplusplus
 }

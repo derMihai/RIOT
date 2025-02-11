@@ -65,6 +65,9 @@ void sock_ip_close(sock_ip_t *sock)
 {
     assert(sock != NULL);
     gnrc_netreg_unregister(GNRC_NETTYPE_IPV6, &sock->reg.entry);
+#ifdef SOCK_HAS_ASYNC
+    sock_event_close(&sock->reg.async_ctx);
+#endif
 }
 
 int sock_ip_get_local(sock_ip_t *sock, sock_ip_ep_t *local)

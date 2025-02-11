@@ -60,6 +60,9 @@ void sock_ip_close(sock_ip_t *sock)
         netconn_delete(sock->base.conn);
         sock->base.conn = NULL;
     }
+#if IS_ACTIVE(SOCK_HAS_ASYNC)
+    sock_event_close(&sock->base.async_ctx);
+#endif
 }
 
 int sock_ip_get_local(sock_ip_t *sock, sock_ip_ep_t *ep)

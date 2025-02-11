@@ -125,6 +125,10 @@ void sock_tcp_disconnect(sock_tcp_t *sock)
         }
     }
 
+#if SOCK_HAS_ASYNC
+    sock_event_close(sock->async_ctx);
+#endif
+
     mutex_unlock(&sock->mutex);
     memset(&sock->mutex, 0, sizeof(mutex_t));
 }

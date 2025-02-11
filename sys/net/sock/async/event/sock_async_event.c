@@ -62,6 +62,19 @@ static void _set_ctx(sock_async_ctx_t *ctx, event_queue_t *ev_queue)
     ctx->queue = ev_queue;
 }
 
+void sock_event_close(sock_async_ctx_t *async_ctx)
+{
+    event_queue_t *queue = async_ctx->queue;
+    if (!queue) {
+        /* no callback registered */
+        return;
+    }
+
+    /* RIOT's socket API is not thread safe so we assume that wherever this is
+     * called from it's not racing against some other socket usage. */
+    event_cancel(async_ctx->queue, &async_ctx->event.super);
+}
+
 #ifdef MODULE_SOCK_DTLS
 static void _dtls_cb(sock_dtls_t *sock, sock_async_flags_t type, void *arg)
 {
