@@ -38,9 +38,9 @@ static tfg_t group = THREAD_FLAGS_GROUP_INIT;
 
 static void *waiter(void *arg)
 {
-    tfg_entry_t entry;
+    // tfg_entry_t entry;
 
-    thread_flags_group_join(&group, &entry);
+    thread_flags_group_join(&group);
 
     printf("waiter %u waiting...\n", (unsigned)arg);
     thread_flags_wait_any(GOOD_FLAG);

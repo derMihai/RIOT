@@ -27,14 +27,13 @@
  *
  *    ...
  *
- *    tfg_entry_t entry;
- *    thread_flags_group_join(&group, &entry);
+ *    thread_flags_group_join(&group);
  *
  *    while (!some_condition_is_met()) {
  *        thread_flags_wait_any(SOME_FLAG);
  *    }
  *
- *    thread_flags_group_leave(&group, &entry);
+ *    thread_flags_group_leave(&group);
  *
  * Example (signaler):
  *
@@ -52,6 +51,8 @@
 #ifndef THREAD_FLAGS_GROUP_H
 #define THREAD_FLAGS_GROUP_H
 
+#include "atomic_utils.h"
+#include "thread.h"
 #include "thread_flags.h"
 
 #ifdef __cplusplus
@@ -59,24 +60,16 @@ extern "C" {
 #endif
 
 /**
- * @brief Thread flags group entry.
- */
-typedef struct {
-    list_node_t node;   /**< linked list node */
-    thread_t *thread;   /**< thread joining the group */
-} tfg_entry_t;
-
-/**
  * @brief Thread flags group.
  */
 typedef struct {
-    list_node_t list;   /**< linked list head */
+    uint8_t members[MAXTHREADS / 8 + !!(MAXTHREADS % 8)]; /**< members bit field */
 } tfg_t;
 
 /**
  * @brief Initialize a thread flags group.
  */
-#define THREAD_FLAGS_GROUP_INIT { 0 }
+#define THREAD_FLAGS_GROUP_INIT { .members = { 0 } }
 
 /**
  * @brief Join a thread flags group.
@@ -86,9 +79,12 @@ typedef struct {
  * thread_flags_group_leave() is called.
  *
  * @param group     The thread flags group to join.
- * @param entry     Thread flags group entry.
  */
-void thread_flags_group_join(tfg_t *group, tfg_entry_t *entry);
+static inline void thread_flags_group_join(tfg_t *group)
+{
+    kernel_pid_t pid = thread_getpid();
+    atomic_set_bit_u8(atomic_bit_u8(&group->members[pid / 8], pid % 8));
+}
 
 /**
  * @brief Leave a thread flags group.
@@ -97,9 +93,12 @@ void thread_flags_group_join(tfg_t *group, tfg_entry_t *entry);
  * thread_flags_group_set().
  *
  * @param group     The thread flags group to leave.
- * @param entry     Thread flags group entry.
  */
-void thread_flags_group_leave(tfg_t *group, tfg_entry_t *entry);
+static inline void thread_flags_group_leave(tfg_t *group)
+{
+    kernel_pid_t pid = thread_getpid();
+    atomic_clear_bit_u8(atomic_bit_u8(&group->members[pid / 8], pid % 8));
+}
 
 /**
  * @brief Set thread flags for all threads in a group.

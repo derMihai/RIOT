@@ -22,34 +22,26 @@
 #include "thread.h"
 #include "thread_flags_group.h"
 
-void thread_flags_group_join(tfg_t *group, tfg_entry_t *entry)
-{
-    int irq_state = irq_disable();
-
-    entry->thread = thread_get_active();
-    list_add(&group->list, &entry->node);
-
-    irq_restore(irq_state);
-}
-
-void thread_flags_group_leave(tfg_t *group, tfg_entry_t *entry)
-{
-    int irq_state = irq_disable();
-
-    list_remove(&group->list, &entry->node);
-
-    irq_restore(irq_state);
-}
-
 void thread_flags_group_set(tfg_t *group, thread_flags_t mask)
 {
-    int irq_state = irq_disable();
-
     /* Interrupts must be disabled because the threads are not ordered by
      * priority. */
-    for (tfg_entry_t *entry = (tfg_entry_t *)group->list.next; entry;
-         entry = (tfg_entry_t *)entry->node.next) {
-        thread_flags_set(entry->thread, mask);
+    int irq_state = irq_disable();
+
+    for (unsigned i = 0; i < ARRAY_SIZE(group->members); i++) {
+        /* Make a PID block copy to prevent unnecessary value reloading. */
+        uint8_t pid_block = group->members[i];
+        if (!pid_block) {
+            continue;
+        }
+
+        for (unsigned j = 0; j < 8; j++) {
+            if (pid_block & (1 << j)) {
+                thread_t *thread = thread_get(i * 8 + j);
+                assert(thread);
+                thread_flags_set(thread, mask);
+            }
+        }
     }
 
     irq_restore(irq_state);
