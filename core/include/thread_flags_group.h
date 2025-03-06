@@ -54,16 +54,64 @@
 #include "atomic_utils.h"
 #include "thread.h"
 #include "thread_flags.h"
+#include "limits.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /**
+ * @internal
+ * @{
+ */
+
+/**
+ * @name Atomic bit manipulation using native integer size
+ *
+ * With "native integer size" we mean whatever unsigned int is because this is
+ * what the bit manipulation in bitarithm.h operates on.
+ *
+ * We can't `typedef unsigned tfg_int_t` because some architectures map uint32_t
+ * to unsigned long, so passing tfg_int_t to the 32-bit atomic operations below
+ * will issue a warning.
+ *
+ * @{
+ */
+#if UINT_MAX == UINT32_MAX
+typedef uint32_t tfg_int_t; /**< integer type for the bitfield */
+#define ATOMIC_SET_BIT_UINT(bit) atomic_set_bit_u32(bit)        /**< set */
+#define ATOMIC_CLEAR_BIT_UINT(bit) atomic_clear_bit_u32(bit)    /**< clear */
+#define ATOMIC_BIT_UINT(dest, bit) atomic_bit_u32(dest, bit)    /**< get bit */
+
+#elif UINT_MAX == UINT16_MAX
+typedef uint16_t tfg_int_t; /**< integer type for the bitfield */
+#define ATOMIC_SET_BIT_UINT(bit) atomic_set_bit_u16(bit)        /**< set */
+#define ATOMIC_CLEAR_BIT_UINT(bit) atomic_clear_bit_u16(bit)    /**< clear */
+#define ATOMIC_BIT_UINT(dest, bit) atomic_bit_u16(dest, bit)    /**< get bit */
+
+#else
+/* Technically, 8-bit-sized unsigned int is possible (e.g. by setting AVR's
+ * -mint8 flag) but that seems to break RIOT in other places.
+ */
+static_assert(0, "unsigned size unsupported!");
+#endif
+
+#define TFG_INT_BITS (sizeof(tfg_int_t) * 8) /**< Number of bits in tfg_int_t */
+/** @} */
+
+/**
+ * @internal
+ * @}
+ */
+
+/**
  * @brief Thread flags group.
  */
 typedef struct {
-    uint8_t members[MAXTHREADS / 8 + !!(MAXTHREADS % 8)]; /**< members bit field */
+    /**
+     * Members bitfield.
+     */
+    tfg_int_t members[MAXTHREADS / TFG_INT_BITS + !!(MAXTHREADS % TFG_INT_BITS)];
 } tfg_t;
 
 /**
@@ -83,7 +131,10 @@ typedef struct {
 static inline void thread_flags_group_join(tfg_t *group)
 {
     kernel_pid_t pid = thread_getpid();
-    atomic_set_bit_u8(atomic_bit_u8(&group->members[pid / 8], pid % 8));
+    /* this also optimizes away the arithmetic below if MAXTHREADS <= TFG_INT_BITS */
+    assume(pid < MAXTHREADS);
+    ATOMIC_SET_BIT_UINT(ATOMIC_BIT_UINT(&group->members[pid / TFG_INT_BITS],
+                                        pid % TFG_INT_BITS));
 }
 
 /**
@@ -97,7 +148,10 @@ static inline void thread_flags_group_join(tfg_t *group)
 static inline void thread_flags_group_leave(tfg_t *group)
 {
     kernel_pid_t pid = thread_getpid();
-    atomic_clear_bit_u8(atomic_bit_u8(&group->members[pid / 8], pid % 8));
+    /* this also optimizes away the arithmetic below if MAXTHREADS <= TFG_INT_BITS */
+    assume(pid < MAXTHREADS);
+    ATOMIC_CLEAR_BIT_UINT(ATOMIC_BIT_UINT(&group->members[pid / TFG_INT_BITS],
+                                          pid % TFG_INT_BITS));
 }
 
 /**
