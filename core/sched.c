@@ -316,6 +316,13 @@ NORETURN void sched_task_exit(void)
 #endif
 
     (void)irq_disable();
+
+    if (me->exit_val != (void *)UINTPTR_MAX) {
+        /* this^ && status > THREAD_ZOMBIFY  -> joinable */
+        thread_zombify();
+        UNREACHABLE();
+    }
+
     sched_threads[thread_getpid()] = NULL;
     sched_num_threads--;
 
