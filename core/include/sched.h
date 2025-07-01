@@ -257,6 +257,11 @@ extern clist_node_t sched_runqueues[SCHED_PRIO_LEVELS];
 NORETURN void sched_task_exit(void);
 
 /**
+ * @brief  Removes thread from scheduler and set status to #STATUS_STOPPED
+ */
+NORETURN void sched_task_exit_with_val(void *ret_val);
+
+/**
  * @brief   Change the priority of the given thread
  *
  * @note    This functions expects interrupts to be disabled when called!

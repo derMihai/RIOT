@@ -27,6 +27,8 @@ extern "C" {
 
 #define THREAD_API_INLINED
 
+#define CPU_JOIN_WITH_VALUE
+
 #ifndef DOXYGEN /* Doxygen is in core/include/thread.h */
 
 static inline __attribute__((always_inline)) void thread_yield_higher(void)

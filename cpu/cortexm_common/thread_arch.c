@@ -172,9 +172,11 @@ char *thread_stack_init(thread_task_func_t task_func,
     /* pc - initial program counter value := thread entry function */
     stk--;
     *stk = (uint32_t)task_func;
-    /* lr - contains the return address when the thread exits */
+    /* lr - contains the return address when the thread exits.
+     * R0 is used both for return value and first argument -> the return value
+     * of the thread function will be where sched_task_exit_val() expects it. */
     stk--;
-    *stk = (uint32_t)sched_task_exit;
+    *stk = (uint32_t)sched_task_exit_with_val;
     /* r12 */
     stk--;
     *stk = 0;

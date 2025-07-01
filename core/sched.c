@@ -304,7 +304,7 @@ void sched_switch(uint16_t other_prio)
     }
 }
 
-NORETURN void sched_task_exit(void)
+NORETURN void sched_task_exit_with_val(void *ret_val)
 {
     DEBUG("sched_task_exit: ending thread %" PRIkernel_pid "...\n",
           thread_getpid());
@@ -319,7 +319,7 @@ NORETURN void sched_task_exit(void)
 
     if (me->exit_val != (void *)UINTPTR_MAX) {
         /* this^ && status > THREAD_ZOMBIFY  -> joinable */
-        thread_zombify();
+        thread_zombify_with_value(ret_val);
         UNREACHABLE();
     }
 
@@ -330,6 +330,12 @@ NORETURN void sched_task_exit(void)
 
     sched_active_thread = NULL;
     cpu_switch_context_exit();
+}
+
+NORETURN void sched_task_exit(void)
+{
+    sched_task_exit_with_val(NULL);
+    UNREACHABLE();
 }
 
 #ifdef MODULE_SCHED_CB

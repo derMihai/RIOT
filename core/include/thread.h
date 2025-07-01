@@ -411,6 +411,8 @@ THREAD_MAYBE_INLINE void thread_yield_higher(void);
  */
 void thread_zombify(void);
 
+void thread_zombify_with_value(void *ret_val);
+
 /**
  * @brief Terminates zombie thread.
  *

@@ -63,7 +63,7 @@ const char *thread_getname(kernel_pid_t pid)
 #endif
 }
 
-void thread_zombify(void)
+void thread_zombify_with_value(void *ret_val)
 {
     if (irq_is_in()) {
         return;
@@ -78,13 +78,18 @@ void thread_zombify(void)
         mutex_unlock(thread->exit_val);
     }
     /* TODO: Here should go the return value of the thread function. */
-    thread->exit_val = NULL;
+    thread->exit_val = ret_val;
 
     irq_enable();
     thread_yield_higher();
 
     /* this line should never be reached */
     UNREACHABLE();
+}
+
+void thread_zombify(void)
+{
+    thread_zombify_with_value(NULL);
 }
 
 /* Assumes IRQ disabled. */
